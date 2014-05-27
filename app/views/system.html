@@ -1,0 +1,121 @@
+<h3>General Information</h3>
+<hr />
+<p class='text-info'>This field describes the version of pcap discovered in the default library path on the system</p>
+<ul class="list-group">
+    <li class="list-group-item">
+        {{system.pcap_version}}
+    </li>
+</ul>
+
+<p class='text-info'>For detailed information on any section below, click / tap on the title to expand it.</p>
+<div class="panel-group" id="accordion">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <a data-toggle="collapse" data-parent="#accordion" href="#collapse-cpus">
+                    CPU Information
+                </a>
+            </h4>
+        </div>
+        <div id="collapse-cpus" class="panel-collapse collapse">
+            <div class="panel-body">
+                <div class='well well-sm'>
+                    <strong>{{system.cpus[0].total_cores}}</strong> total cores in
+                    <strong>{{system.cpus[0].total_sockets}}</strong> total sockets
+                    [<strong>{{system.cpus[0].cores_per_socket}}</strong> cores / socket]<br />
+                    <strong>{{system.cpus[0].cache}}K</strong> L1 cache reported<br />
+                </div>
+                <h5>CPUs discovered</h5>
+                <ul class="list-group">
+                    <li class="list-group-item" ng-repeat="cpu in system.cpus">
+                        {{cpu.vendor}} {{cpu.model}} @{{cpu.mhz}}MHz
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class='panel panel-default'>
+        <div class='panel-heading'>
+            <h4 class='panel-title'>
+                <a data-toggle='collapse' data-parent='#accordion' href='#collapse-interfaces'>
+                    Interface Information
+                </a>
+            </h4>
+        </div>
+        <div id='collapse-interfaces' class='panel-collapse collapse'>
+            <div class='panel-body'>
+                <div class='well well-sm'>
+                    <strong>{{system.interfaces.length}}</strong> interface(s) reported.
+                </div>
+                <div ng-repeat="interface in system.interfaces">
+                    <div ng-click='interfaceLookup()'>
+                        <h6>{{interface.name}}</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                <strong>MAC</strong> <span class='interface-info'>{{interface.hwaddr}}</span>
+                            </li>
+                            <li class='list-group-item'  ng-show='interface.address != "0.0.0.0"'>
+                                <strong>IPv4</strong> <span class='interface-info'>{{interface.address}} / {{interface.netmask}}</span>
+                            </li>
+                            <li class='list-group-item'  ng-show='interface.address6 != "::"'>
+                                <strong>IPv6</strong> <span class='interface-info'>{{interface.address6}}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class='panel panel-default'>
+        <div class='panel-heading'>
+            <h4 class='panel-title'>
+                <a data-toggle='collapse' data-parent='#accordion' href='#collapse-partitions'>
+                    Partition Information
+                </a>
+            </h4>
+        </div>
+        <div id='collapse-partitions' class='panel-collapse collapse'>
+            <div class='panel-body'>
+                <div class='well well-sm'>
+                    <strong>{{system.partitions.length}}</strong> volume(s) reported.
+                </div>
+                <div ng-repeat="partition in system.partitions">
+                    <h5 class='volume-label'>Volume {{partition[1]}}</h5>
+                    <ul class='list-group'>
+                        <li class="list-group-item">
+                            <strong>Device</strong> <span class='partition-info'>{{partition[0]}}</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Type</strong> <span class='partition-info'>{{partition[2]}}</span>
+                        </li>
+                        <li class='list-group-item'>
+                            <strong>Options</strong> <span class='partition-info'>{{partition[3]}}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Additional Information</h3>
+    <hr />
+    <p class='text-info'>Select a list of additional information to display below.  'clear' will clear the results.</p>
+    <div class="btn-group">
+        <button type="button" class="btn btn-default" ng-click='updateDisplayTarget("clear")'>clear</button>
+        <button type="button" class="btn btn-default" ng-click='updateDisplayTarget("sysctl")'>sysctl</button>
+        <button type="button" class="btn btn-default" ng-click='updateDisplayTarget("facter")'>facter</button>
+    </div>
+    <div ng-show='target.length > 0'>
+        <br />
+        <p class='text-info'>Enter a value into the box below to search ...</p>
+        <input type="search" class="form-control" id="infoFilter" placeholder="search for..." ng-model='infoFilter'/>
+        <div class='table-responsive'>
+            <table class='table'>
+                <tr ng-repeat="item in target | filter:infoFilter">
+                    <td>{{item.key}}</td>
+                    <td>{{item.value}}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>

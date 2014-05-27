@@ -1,0 +1,17 @@
+<form class="form-horizontal">
+    <fieldset>
+        <legend>Settings</legend>
+        <div class="form-group">
+            <label class="col-md-4 control-label" for="baseUrl">Base URL</label>
+            <div class="col-md-4">
+                <input id="baseUrl" placeholder="base.url" ng-model="baseUrl" class="form-control input-md" type="text" ng-change='updateBaseUrl(baseUrl)'>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-md-4 control-label" for="baseUrl">Selected Index</label>
+            <div class="col-md-4">
+                <input disabled id="selectedIndex" placeholder="index.name" ng-model="indexName" class="form-control input-md" type="text">
+            </div>
+        </div>
+    </fieldset>
+</form>

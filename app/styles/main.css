@@ -1,0 +1,41 @@
+.panel > .panel-heading {
+    background-color:#E8EFFF;
+}
+
+p.text-info {
+    color:#AAAAAA;
+    font-style:italic;
+    font-size:0.7em;
+    margin-bottom:0em;
+    padding-left:1em;
+}
+
+.container-no-border {
+    padding-left: 0em;
+    padding-right: 0em;
+}
+
+span.interface-info {
+    color:#666666;
+    font-style:italic;
+    font-size:0.9em;
+}
+
+span.partition-info {
+    color:#666666;
+    font-style:italic;
+    font-size:0.9em;
+}
+
+h5.volume-label {
+    padding-left:2em;
+}
+
+.table-responsive {
+    overflow-x:auto;
+}
+
+.chart-control {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}

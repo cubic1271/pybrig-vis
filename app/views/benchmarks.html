@@ -1,0 +1,10 @@
+        <div class='well well-sm'>Currently working with: <strong>{{getSelectedBenchmark()}}</strong></div>
+
+        <p class='text-info'>A list of all available benchmarks is provided here.  Selecting a benchmark will change the data shown by all other
+            views.</p>
+
+        <ul class="list-group">
+            <li class="list-group-item" ng-repeat="benchmark in benchmarks" ng-click='updateSelectedBenchmark(benchmark)'>
+                {{benchmark}}
+            </li>
+        </ul>
