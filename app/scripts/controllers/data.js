@@ -62,10 +62,10 @@ angular.module('pybrigVisApp')
             return JSON.parse(localStorage['fields.show']);
         }
 
-        if(null == $scope.getShownData()) {
+        if(null == localStorage['data.show']) {
             $scope.setShownData([]);
         }
-        if(null == $scope.getShownFields()) {
+        if(null == localStorage['fields.show']) {
             $scope.setShownFields([]);
         }
 
