@@ -184,18 +184,21 @@ angular.module('pybrigVisApp')
                         $scope.timedata[item]['benchmark.ts'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $scope.updateChart();
                     });
 
                     BenchmarkService.getFieldValues(item, 'benchmark.lag').then(function(result) {
                         $scope.timedata[item]['benchmark.lag'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $scope.updateChart();
                     });
 
                     BenchmarkService.getFieldValues(item, 'profile.ts').then(function(result) {
                         $scope.timedata[item]['profile.ts'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $scope.updateChart();
                     });
                 })(item);
 
@@ -221,6 +224,7 @@ angular.module('pybrigVisApp')
         $scope.updateChart = function() {
             if($scope.pending > 0) {
                 $log.warn("Refusing to update chart before fetch has been completed.");
+                return;
             }
             $log.info($scope.datasets);
             $log.info($scope.timedata);
@@ -248,7 +252,7 @@ angular.module('pybrigVisApp')
                     // Otherwise, X is just the timestamp
                     else if(field.contains('profile.')) {
                         xCompute = function(item, index) {
-                            return $scope.timedata[item]['profile.ts'];
+                            return $scope.timedata[item]['profile.ts'][index];
                         }
                     }
                     else {
