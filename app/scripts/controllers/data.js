@@ -184,6 +184,7 @@ angular.module('pybrigVisApp')
                         $scope.timedata[item]['benchmark.ts'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $log.info("Fetch completed.  (" + $scope.pending + " remaining)");
                         $scope.updateChart();
                     });
 
@@ -191,6 +192,7 @@ angular.module('pybrigVisApp')
                         $scope.timedata[item]['benchmark.lag'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $log.info("Fetch completed.  (" + $scope.pending + " remaining)");
                         $scope.updateChart();
                     });
 
@@ -198,19 +200,17 @@ angular.module('pybrigVisApp')
                         $scope.timedata[item]['profile.ts'] = result;
                         $scope.pending -= 1;
                         $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                        $log.info("Fetch completed.  (" + $scope.pending + " remaining)");
                         $scope.updateChart();
                     });
                 })(item);
 
                 for(var field in $scope.shownFields) {
                     field = $scope.shownFields[field];
-                    $log.info("Fetching: " + item + " -- " + field);
                     // wrap in an anonymous function to make sure the variables are available to 'then'.
                     (function(item, field) {
                         BenchmarkService.getFieldValues(item, field).then(function(result) {
-                            $log.info("Fetched: " + item + " -- " + field);
                             $scope.datasets[item][field] = result;
-                            $log.info($scope.datasets[item][field]);
                             $scope.pending -= 1;
                             $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
                             $log.info("Fetch completed.  (" + $scope.pending + " remaining)");
@@ -223,11 +223,8 @@ angular.module('pybrigVisApp')
 
         $scope.updateChart = function() {
             if($scope.pending > 0) {
-                $log.warn("Refusing to update chart before fetch has been completed.");
                 return;
             }
-            $log.info($scope.datasets);
-            $log.info($scope.timedata);
 
             var chart = {};
             chart.width = $('#graphSizer').innerWidth();
@@ -242,7 +239,6 @@ angular.module('pybrigVisApp')
                 }
                 var times = $scope.timedata[item];
                 // field values ...
-                $log.info($scope.datasets[item])
                 for(var field in $scope.datasets[item]) {
                     if(!$scope.datasets[item].hasOwnProperty(field)) {
                         continue;
@@ -250,16 +246,15 @@ angular.module('pybrigVisApp')
                     var currData = [];
                     var xCounter = 0;
                     var xCompute = function() { return 0; }
-                    $log.info("Processing " + field);
 
                     // If this is a benchmark field, X is the timestamp + the lag
-                    if(field.indexOf('benchmark.')) {
+                    if(field.search('benchmark.') != -1) {
                         xCompute = function(item, index) {
                             return $scope.timedata[item]['benchmark.ts'][index] + $scope.timedata[item]['benchmark.lag'][index];
                         }
                     }
                     // Otherwise, X is just the timestamp
-                    else if(field.indexOf('profile.')) {
+                    else if(field.search('profile.') != -1) {
                         xCompute = function(item, index) {
                             return $scope.timedata[item]['profile.ts'][index];
                         }
@@ -269,8 +264,17 @@ angular.module('pybrigVisApp')
                     }
                     // iterate across all the elements in the array and build a data set...
                     for(var entry in $scope.datasets[item][field]) {
+                        var result = xCompute(item, xCounter);
+                        if(typeof result == "undefined") {
+                            $log.warn("No data found for X: " + item + "/" + field + ":" + entry);
+                            continue;
+                        }
+                        if(typeof $scope.datasets[item][field][entry] == "undefined") {
+                            $log.warn("No data found for Y:" + item + "/" + field + ":" + entry);
+                            continue;
+                        }
                         currData.push({
-                            x:xCompute(item, xCounter),
+                            x:result,
                             y:$scope.datasets[item][field][entry]
                         });
                         xCounter++;
@@ -283,7 +287,6 @@ angular.module('pybrigVisApp')
                 }
             }
 
-            $log.info(chart);
             $('#graphDiv').html('');
             $('#graphLegend').html('');
 
