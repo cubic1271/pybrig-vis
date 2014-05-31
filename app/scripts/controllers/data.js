@@ -237,20 +237,29 @@ angular.module('pybrigVisApp')
 
             // trial results ...
             for(var item in $scope.datasets) {
+                if(!$scope.datasets.hasOwnProperty(item)) {
+                    continue;
+                }
                 var times = $scope.timedata[item];
                 // field values ...
+                $log.info($scope.datasets[item])
                 for(var field in $scope.datasets[item]) {
+                    if(!$scope.datasets[item].hasOwnProperty(field)) {
+                        continue;
+                    }
                     var currData = [];
                     var xCounter = 0;
                     var xCompute = function() { return 0; }
+                    $log.info("Processing " + field);
+
                     // If this is a benchmark field, X is the timestamp + the lag
-                    if(field.contains('benchmark.')) {
+                    if(field.indexOf('benchmark.')) {
                         xCompute = function(item, index) {
                             return $scope.timedata[item]['benchmark.ts'][index] + $scope.timedata[item]['benchmark.lag'][index];
                         }
                     }
                     // Otherwise, X is just the timestamp
-                    else if(field.contains('profile.')) {
+                    else if(field.indexOf('profile.')) {
                         xCompute = function(item, index) {
                             return $scope.timedata[item]['profile.ts'][index];
                         }
