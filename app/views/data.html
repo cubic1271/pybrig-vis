@@ -6,7 +6,7 @@
 
 <div id='content' class="tab-content">
     <div class="tab-pane" id="viewer">
-        <div ng-show="shownFields.length + shownData.length == 0">
+        <div ng-show="shownFields.length == 0 || shownData.length == 0">
             <div class="alert alert-warning">
                 Please select at least one item on the 'data' and 'field' tabs, then return to this tab to view the
                 resulting graph.
