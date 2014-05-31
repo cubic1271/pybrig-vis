@@ -1,24 +1,66 @@
 <ul class="nav nav-tabs">
-    <li><a href="#viewer" data-toggle='tab'>Viewer</a></li>
+    <li><a href="#viewer" data-toggle='tab' ng-click='updateDataSet()'>Viewer</a></li>
     <li class='active'><a href="#data" data-toggle='tab'>Data</a></li>
     <li><a href="#fields" data-toggle='tab'>Fields</a></li>
 </ul>
 
 <div id='content' class="tab-content">
     <div class="tab-pane" id="viewer">
-        Viewer.
+        <div ng-show="pending > 0">
+            <p>Loading data ...</p>
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" aria-valuenow="{{completed}}" aria-valuemin="0" aria-valuemax="100" style="width: {{completed}}%;">
+                    {{completed}}
+                </div>
+            </div>
+        </div>
     </div>
     <div class="tab-pane active" id="data">
+        <div class="alert alert-warning" ng-show='shownFields.length + shownData.length > 6'>
+            There are a number of fields and / or data sets selected, so rendering / updating the graph may be slow (or,
+            in some cases, actually crash the browser).
+        </div>
         <div class='row'>
             <div class='col-md-6'>
                 <h4>Active</h4>
+                <ul class='list-group'>
+                    <li class='list-group-item' ng-repeat='item in shownData' ng-click='removeDataItem(item)'>
+                        {{item}}
+                    </li>
+                </ul>
             </div>
             <div class='col-md-6'>
-                <h4>Inactive</h4>
+                <h4>Available</h4>
+                <ul class="list-group">
+                    <li class="list-group-item" ng-repeat="item in availableData" ng-click='addDataItem(item)'>
+                        {{item}}
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
     <div class="tab-pane" id="fields">
-        Fields.
+        <div class="alert alert-warning" ng-show='shownFields.length + shownData.length > 6'>
+            There are a number of fields and / or data sets selected, so rendering / updating the graph may be slow (or,
+            in some cases, actually crash the browser).
+        </div>
+        <div class='row'>
+            <div class='col-md-6'>
+                <h4>Active</h4>
+                <ul class='list-group'>
+                    <li class='list-group-item' ng-repeat='item in shownFields' ng-click='removeFieldItem(item)'>
+                        {{item}}
+                    </li>
+                </ul>
+            </div>
+            <div class='col-md-6'>
+                <h4>Available</h4>
+                <ul class="list-group">
+                    <li class="list-group-item" ng-repeat="item in availableFields" ng-click='addFieldItem(item)'>
+                        {{item}}
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>

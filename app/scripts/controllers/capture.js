@@ -7,8 +7,6 @@ angular.module('pybrigVisApp')
     $scope.capture = {};
     $scope.titles = [];
 
-    $scope.color = {};
-    $scope.enabled = {};
     $scope.protocols = [];
     $scope.datasets = {};
     $scope.chart = {};
@@ -19,10 +17,6 @@ angular.module('pybrigVisApp')
     });
 
     $scope.updateChartSize = function() {
-        // TODO: angular-ify?
-        $scope.chartContext = $('#captureGraph').get(0).getContext('2d');
-        var targetWidth = window.innerWidth * 0.92;
-        $('#captureGraph').attr('width', targetWidth);
         $(window).off('resize.chart');
         $(window).on('resize.chart', function() {
             $scope.updateChartSize();
@@ -49,61 +43,117 @@ angular.module('pybrigVisApp')
         var red = (hash & 0x00ff0000) >> 16;
         var green = (hash & 0x0000ff00) >> 8;
         var blue = (hash & 0x000000ff);
-        return 'rgba(' + (red + 128) + ', ' + (green + 128) + ', ' + (blue + 128) + ', ' + alpha + ')';
-    }
-
-    $scope.updateEnabled = function(proto, value) {
-        $scope.enabled[proto] = value;
-        $scope.updateChart();
+        if(alpha < 1) {
+            alpha *= 255;
+            alpha = Math.round(alpha);
+        }
+        return 'rgba(' + (red + 128) % 255 + ', ' + (green + 128) % 255 + ', ' + (blue + 128) % 255 + ', ' + alpha + ')';
     }
 
     $scope.updateChart = function() {
         var chart = {};
-
-        // compose labels ...
-        var labels = [];
-        for(var counter = 0; counter < $scope.capture.resolution; ++counter) {
-            labels.push(counter);
+        /*
+        if(window.innerWidth >= 1280) {
+            chart.width = window.innerWidth * 0.85;
+            chart.height = (chart.width * 0.75 > window.innerHeight * 0.75 && window.innerHeight > 600)
+                              ? window.innerHeight * 0.75 : chart.width * 0.75;
         }
-        chart.labels = labels;
+        else if(window.innerWidth >= 1024) {
+            chart.width = 640;
+            chart.height = 480;
+        }
+        else if(window.innerWidth > 640) {
+            chart.width = 427;
+            chart.height = 320;
+        }
+        else {
+            chart.width = 320;
+            chart.height = 240;
+        }
+        */
+        chart.width = $('#graphSizer').innerWidth();
+        chart.height = 0.5 * chart.width;
 
-        // ... and compose data sets ...
-        var info = [];
+        chart.renderer = "area";
+        chart.stroke = true;
+        chart.series = [];
 
-        for(var proto in $scope.protocols) {
-            proto = $scope.protocols[proto];
-            if($scope.enabled[proto]) {
-                var curr = {};
-                curr.data = $scope.datasets[proto];
-                curr.fillColor = $scope.getColorString(proto, 0.5);
-                curr.strokeColor = $scope.getColorString(proto, 1.0);
-                curr.pointColor = $scope.getColorString(proto, 1.0);
-                curr.pointStrokeColor = '#fff';
-                info.push(curr);
+        for(var item in $scope.datasets) {
+            if($scope.datasets.hasOwnProperty(item)) {
+                chart.series.push(
+                    {
+                        name: $scope.protocol_translate.hasOwnProperty(item) ? $scope.protocol_translate[item] : item,
+                        data: $scope.datasets[item],
+                        color: $scope.getColorString(item, 128)
+                    }
+                );
             }
-
         }
 
-        chart.datasets = info;
-        new Chart($scope.chartContext).Line(chart, {labelSkip: 10 });
+        // Need to explicitly clear the graph and the legend ...
+        $('#graphDiv').html('');
+        $('#graphLegend').html('');
+
+        $log.info($scope.datasets);
+
+        var graph = new Rickshaw.Graph({
+            interpolation: 'linear',
+            element: document.querySelector("#graphDiv"),
+            width: chart.width,
+            height: chart.height,
+            renderer: "line",
+            stroke: true,
+            series: chart.series
+        });
+        $log.info('Graph object created ...');
+//        graph.renderer.unstack = true;
+
+        new Rickshaw.Graph.Axis.Y({
+            graph: graph
+        });
+
+        new Rickshaw.Graph.Axis.Time({
+            graph: graph
+        });
+
+        graph.render();
+
+        var slider = new Rickshaw.Graph.RangeSlider({
+            graph: graph,
+            element: document.querySelector('#graphSlider')
+        });
+
+        var legend = new Rickshaw.Graph.Legend( {
+            graph: graph,
+            element: document.querySelector('#graphLegend')
+
+        } );
+
+        var shelving = new Rickshaw.Graph.Behavior.Series.Toggle( {
+            graph: graph,
+            legend: legend
+        } );
+
+        var order = new Rickshaw.Graph.Behavior.Series.Order( {
+            graph: graph,
+            legend: legend
+        } );
+
+        var highlighter = new Rickshaw.Graph.Behavior.Series.Highlight( {
+            graph: graph,
+            legend: legend
+        } );
+
     }
 
     $scope.rebuildCaptureInfo = function(result) {
-        $scope.color = {};
-        $scope.enabled = {};
         $scope.protocols = [];
         $scope.datasets = {};
 
         for(var item in result.counters_list) {
             for(var proto in result.counters_list[item]) {
                 if(result.counters_list[item].hasOwnProperty(proto)) {
-                    var do_insert = true;
-                    for(var res in $scope.protocols) {
-                        if($scope.protocols[res] == proto) {
-                            do_insert = false;
-                        }
-                    }
-                    if(do_insert) {
+                    if($scope.protocols.indexOf(proto) == -1) {
                         $scope.protocols.push(proto);
                     }
                 }
@@ -114,14 +164,13 @@ angular.module('pybrigVisApp')
 
         for(var item in $scope.protocols) {
             $scope.datasets[$scope.protocols[item]] = [];
-            $scope.enabled[$scope.protocols[item]] = true;
-            $scope.color[$scope.protocols[item]] = $scope.getColorString($scope.protocols[item], 0.33);
             if(! $scope.protocol_translate.hasOwnProperty($scope.protocols[item])) {
                 $scope.protocol_translate[$scope.protocols[item]] = $scope.protocols[item];
             }
         }
 
         $log.info('Compiling data sets ...');
+        var xCount = 0;
         for(var item in result.counters_list) {
             var target = result.counters_list[item];
             var cumulative = 0;
@@ -134,34 +183,58 @@ angular.module('pybrigVisApp')
                 if(target.hasOwnProperty(proto)) {
                     // If we're aggregating, build a cumulative count ...
                     if($scope.aggregate && $scope.datasets[proto].length >= 1) {
-                        $scope.datasets[proto].push(target[proto] + $scope.datasets[proto][$scope.datasets[proto].length - 1]);
+                        $scope.datasets[proto].push({
+                            x: xCount * result.incr,
+                            y: target[proto] + $scope.datasets[proto][$scope.datasets[proto].length - 1].y
+                        });
                     }
                     else if($scope.pps) {
-                        $scope.datasets[proto].push(target[proto] / result.incr);
+                        $scope.datasets[proto].push({
+                            x: xCount * result.incr,
+                            y: target[proto] / result.incr
+                        });
                     }
                     else {
-                        $scope.datasets[proto].push(target[proto]);
+                        $scope.datasets[proto].push({
+                            x: xCount * result.incr,
+                            y: target[proto]
+                        });
                     }
                     cumulative += target[proto];
                 }
                 else {
-                    $scope.datasets[proto].push(0);
+                    $scope.datasets[proto].push({
+                        x: xCount * result.incr,
+                        y: 0
+                    });
                 }
             }
             if($scope.aggregate && $scope.datasets['Total'].length >= 1) {
-                $scope.datasets['Total'].push(cumulative + $scope.datasets['Total'][$scope.datasets['Total'].length - 1])
+                $scope.datasets['Total'].push({
+                    x: xCount * result.incr,
+                    y: cumulative + $scope.datasets['Total'][$scope.datasets['Total'].length - 1]
+                });
             }
             else if($scope.pps) {
-                $scope.datasets['Total'].push(cumulative / result.incr);
+                $scope.datasets['Total'].push({
+                    x: xCount * result.incr,
+                    y: cumulative / result.incr
+                });
             }
             else {
-                $scope.datasets['Total'].push(cumulative);
+                $scope.datasets['Total'].push({
+                    x: xCount * result.incr,
+                    y: cumulative
+                });
             }
+
+            xCount++;
         }
 
         for(var proto in $scope.protocols) {
             proto = $scope.protocols[proto];
             $log.info("Dataset " + proto + ": " + $scope.datasets[proto].length + " entries");
+            $log.info($scope.datasets[proto]);
         }
 
         $log.info('Building initial chart ...');
@@ -174,8 +247,9 @@ angular.module('pybrigVisApp')
         $scope.rebuildCaptureInfo(result);
     });
 
-    $scope.updateAggregate = function(value) {
-        $scope.aggregate = value;
+    $scope.toggleAggregate = function() {
+        $scope.aggregate = !$scope.aggregate;
+
         if($scope.pps && $scope.aggregate) {
             $scope.pps = false;
         }
@@ -184,8 +258,8 @@ angular.module('pybrigVisApp')
         $scope.updateChart();
     };
 
-    $scope.updatePacketsPerSecond = function(value) {
-        $scope.pps = value;
+    $scope.togglePacketsPerSecond = function() {
+        $scope.pps = !$scope.pps;
         if($scope.pps && $scope.aggregate) {
             $scope.aggregate = false;
         }

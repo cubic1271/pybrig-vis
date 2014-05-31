@@ -1,6 +1,6 @@
 angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '$log', '$http', function(SettingsService, $log, $http)
 {
-    var curr = this;
+    var self = this;
     this.buildPath = function(path) {
         return SettingsService.getBaseUrl() + '/' + path;
     };
@@ -9,8 +9,8 @@ angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '
     }
 
     this.getBenchmarkList = function() {
-        $log.info("Fetching list of benchmarks from " + curr.buildPath('_mapping') + " ...");
-        return $http.get(curr.buildPath('_mapping')).then(
+        $log.info("Fetching list of benchmarks from " + self.buildPath('_mapping') + " ...");
+        return $http.get(self.buildPath('_mapping')).then(
             function(result) {
                 var list = [];
                 if(result.status != 200) {
@@ -29,8 +29,8 @@ angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '
     };
 
     this.getInfo = function(url) {
-        $log.info("Fetching system information from " + curr.getFetchUrl('system/info'));
-        return $http.get(curr.getFetchUrl(url)).then(
+        $log.info("Fetching system information from " + self.getFetchUrl('system/info'));
+        return $http.get(self.getFetchUrl(url)).then(
             function(result) {
                 if(result.status != 200) {
                     $log.warn('Could not retrieve ' + url + ' ...');
@@ -44,8 +44,8 @@ angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '
     };
 
     this.getExecutionList = function() {
-        $log.info("Fetching list of executions from " + curr.getFetchUrl('_mapping') + " ...");
-        return $http.get(curr.getFetchUrl('_mapping')).then(
+        $log.info("Fetching list of executions from " + self.getFetchUrl('_mapping') + " ...");
+        return $http.get(self.getFetchUrl('_mapping')).then(
             function(result) {
                 var list = [];
                 if(result.status != 200) {
@@ -67,6 +67,35 @@ angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '
         );
     };
 
+    this.getFieldList = function(item) {
+        return [
+            "benchmark.pcpu.system",
+            "benchmark.pcpu.user",
+            "benchmark.ctx.voluntary",
+            "profile.timers.current",
+            "profile.timers.mem",
+            "profile.triggers.pending",
+            "profile.triggers.total"
+        ];
+    };
+    
+    this.getFieldValues = function(trial, field) {
+        var fields = field.split('.');
+        if(fields.length <= 1) {
+            $log.error("Invalid field target: " + field);
+            return [];
+        }
+        var target = fields[0];
+        return $http.get(self.getFetchUrl(trial + '/' + target)).then(function(result) {
+            var list = [];
+            for(var entry in result.data._source.data) {
+                entry = result.data._source.data[entry];
+                list.push(self.retrieveField(entry, field));
+            }
+            return list;
+        });
+    };
+
     this.getSystemInfo = function() {
         return this.getInfo('system/info');
     };
@@ -74,4 +103,13 @@ angular.module('pybrigVisApp').service('BenchmarkService', ['SettingsService', '
     this.getCaptureInfo = function() {
         return this.getInfo('capture/info');
     };
-}]);
+
+    this.retrieveField = function(data, field) {
+        var fields = field.split('.');
+        // First part before the '.' identifies the source of the data, so that can be ignored.
+        for(var index = 1; index < fields.length; ++index) {
+            data = data[fields[index]];
+        }
+        return data;
+    };
+}])
