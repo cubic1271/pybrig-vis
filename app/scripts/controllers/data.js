@@ -4,8 +4,47 @@ angular.module('pybrigVisApp')
   .controller('DataController', ['$scope', '$log', 'SettingsService', 'BenchmarkService', function ($scope, $log, SettingsService, BenchmarkService) {
 
         $scope.datasets = {};
+        $scope.timedata = {};
         $scope.pending = 0;
         $scope.total = 0;
+
+        $scope.$on('$viewContentLoaded', function() {
+            $scope.updateChartSize();
+        });
+
+        $scope.updateChartSize = function() {
+            $(window).off('resize.chart');
+            $(window).on('resize.chart', function() {
+                $scope.updateChartSize();
+                $scope.updateChart();
+            });
+        };
+
+        $scope.getColorString = function(str, alpha) {
+            // Make sure the string is at least 2500 characters long ...
+            if(str.length < 2500) {
+                for(var i = str.length; i < 2500; ++i) {
+                    str += str.charCodeAt(0);
+                }
+            }
+            // Build a generic hash (http://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript-jquery)
+            var hash = 0, i, chr, len;
+            if (str.length == 0) return hash;
+            for (i = 0, len = str.length; i < len; i++) {
+                chr   = str.charCodeAt(i);
+                hash  = ((hash << 5) - hash) + chr;
+                hash |= 0; // Convert to 32bit integer
+            }
+            // Grab 24 bits to compose the color value ...
+            var red = (hash & 0x00ff0000) >> 16;
+            var green = (hash & 0x0000ff00) >> 8;
+            var blue = (hash & 0x000000ff);
+            if(alpha < 1) {
+                alpha *= 255;
+                alpha = Math.round(alpha);
+            }
+            return 'rgba(' + (red + 128) % 255 + ', ' + (green + 128) % 255 + ', ' + (blue + 128) % 255 + ', ' + alpha + ')';
+        }
 
         $scope.setShownData = function(updated) {
             localStorage['data.show'] = JSON.stringify(updated);
@@ -119,42 +158,47 @@ angular.module('pybrigVisApp')
             }
         };
 
-
-        $scope.getColorString = function(str, alpha) {
-            // Make sure the string is at least 2500 characters long ...
-            if(str.length < 2500) {
-                for(var i = str.length; i < 2500; ++i) {
-                    str += str.charCodeAt(0);
-                }
-            }
-            // Build a generic hash (http://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript-jquery)
-            var hash = 0, i, chr, len;
-            if (str.length == 0) return hash;
-            for (i = 0, len = str.length; i < len; i++) {
-                chr   = str.charCodeAt(i);
-                hash  = ((hash << 5) - hash) + chr;
-                hash |= 0; // Convert to 32bit integer
-            }
-            // Grab 24 bits to compose the color value ...
-            var red = (hash & 0x00ff0000) >> 16;
-            var green = (hash & 0x0000ff00) >> 8;
-            var blue = (hash & 0x000000ff);
-            return 'rgba(' + (red + 128) + ', ' + (green + 128) + ', ' + (blue + 128) + ', ' + alpha + ')';
-        }
-
         $scope.updateDataSet = function() {
             if($scope.pending > 0) {
                 $log.warn("Refusing to restart data set update before previous update has been completed ...");
                 return;
             }
             $scope.datasets = {};
-            $scope.pending = $scope.shownData.length * $scope.shownFields.length;
+            $scope.timedata = {};
+            // TODO: The number of requests here really kind of sucks ...
+            $scope.pending = ($scope.shownData.length * $scope.shownFields.length) + (3 * $scope.shownData.length);
             $scope.total = $scope.pending;
             $scope.completed = 0;
 
             for(var item in $scope.shownData) {
                 item = $scope.shownData[item];
+                $scope.timedata[item] = {};
                 $scope.datasets[item] = {};
+
+                // First, make three calls to pull down timing data:
+                // benchmark.ts -- timestamp at which a timestamp was requested
+                // benchmark.lag -- how long it took the request to be processed
+                // profile.ts -- timestamp at which a profile was recorded
+                (function(item){
+                    BenchmarkService.getFieldValues(item, 'benchmark.ts').then(function(result) {
+                        $scope.timedata[item]['benchmark.ts'] = result;
+                        $scope.pending -= 1;
+                        $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                    });
+
+                    BenchmarkService.getFieldValues(item, 'benchmark.lag').then(function(result) {
+                        $scope.timedata[item]['benchmark.lag'] = result;
+                        $scope.pending -= 1;
+                        $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                    });
+
+                    BenchmarkService.getFieldValues(item, 'profile.ts').then(function(result) {
+                        $scope.timedata[item]['profile.ts'] = result;
+                        $scope.pending -= 1;
+                        $scope.completed = Math.round(100 * (1 - ($scope.pending / $scope.total)));
+                    });
+                })(item);
+
                 for(var field in $scope.shownFields) {
                     field = $scope.shownFields[field];
                     $log.info("Fetching: " + item + " -- " + field);
@@ -179,5 +223,101 @@ angular.module('pybrigVisApp')
                 $log.warn("Refusing to update chart before fetch has been completed.");
             }
             $log.info($scope.datasets);
+            $log.info($scope.timedata);
+
+            var chart = {};
+            chart.width = $('#graphSizer').innerWidth();
+            chart.height = 0.5 * chart.width;
+
+            chart.series = [];
+
+            // trial results ...
+            for(var item in $scope.datasets) {
+                var times = $scope.timedata[item];
+                // field values ...
+                for(var field in $scope.datasets[item]) {
+                    var currData = [];
+                    var xCounter = 0;
+                    var xCompute = function() { return 0; }
+                    // If this is a benchmark field, X is the timestamp + the lag
+                    if(field.contains('benchmark.')) {
+                        xCompute = function(item, index) {
+                            return $scope.timedata[item]['benchmark.ts'][index] + $scope.timedata[item]['benchmark.lag'][index];
+                        }
+                    }
+                    // Otherwise, X is just the timestamp
+                    else if(field.contains('profile.')) {
+                        xCompute = function(item, index) {
+                            return $scope.timedata[item]['profile.ts'];
+                        }
+                    }
+                    else {
+                        $log.error("Unable to load timing information for: " + item + "/" + field);
+                    }
+                    // iterate across all the elements in the array and build a data set...
+                    for(var entry in $scope.datasets[item][field]) {
+                        currData.push({
+                            x:xCompute(item, xCounter),
+                            y:$scope.datasets[item][field][entry]
+                        });
+                        xCounter++;
+                    }
+                    chart.series.push({
+                        name: item + '/' + field,
+                        data: currData,
+                        color: $scope.getColorString(item + '/' + field, 128)
+                    });
+                }
+            }
+
+            $log.info(chart);
+            $('#graphDiv').html('');
+            $('#graphLegend').html('');
+
+            var graph = new Rickshaw.Graph({
+                interpolation: 'linear',
+                element: document.querySelector("#graphDiv"),
+                width: chart.width,
+                height: chart.height,
+                renderer: "line",
+                stroke: true,
+                series: chart.series
+            });
+
+            new Rickshaw.Graph.Axis.Y({
+                graph: graph
+            });
+
+            new Rickshaw.Graph.Axis.Time({
+                graph: graph
+            });
+
+            graph.render();
+
+            var slider = new Rickshaw.Graph.RangeSlider({
+                graph: graph,
+                element: document.querySelector('#graphSlider')
+            });
+
+            var legend = new Rickshaw.Graph.Legend( {
+                graph: graph,
+                element: document.querySelector('#graphLegend')
+
+            } );
+
+            var shelving = new Rickshaw.Graph.Behavior.Series.Toggle( {
+                graph: graph,
+                legend: legend
+            } );
+
+            var order = new Rickshaw.Graph.Behavior.Series.Order( {
+                graph: graph,
+                legend: legend
+            } );
+
+            var highlighter = new Rickshaw.Graph.Behavior.Series.Highlight( {
+                graph: graph,
+                legend: legend
+            } );
         };
   }]);

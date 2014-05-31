@@ -52,30 +52,11 @@ angular.module('pybrigVisApp')
 
     $scope.updateChart = function() {
         var chart = {};
-        /*
-        if(window.innerWidth >= 1280) {
-            chart.width = window.innerWidth * 0.85;
-            chart.height = (chart.width * 0.75 > window.innerHeight * 0.75 && window.innerHeight > 600)
-                              ? window.innerHeight * 0.75 : chart.width * 0.75;
-        }
-        else if(window.innerWidth >= 1024) {
-            chart.width = 640;
-            chart.height = 480;
-        }
-        else if(window.innerWidth > 640) {
-            chart.width = 427;
-            chart.height = 320;
-        }
-        else {
-            chart.width = 320;
-            chart.height = 240;
-        }
-        */
         chart.width = $('#graphSizer').innerWidth();
         chart.height = 0.5 * chart.width;
 
-        chart.renderer = "area";
-        chart.stroke = true;
+//        chart.renderer = "area";
+//        chart.stroke = true;
         chart.series = [];
 
         for(var item in $scope.datasets) {
